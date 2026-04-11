@@ -1,0 +1,50 @@
+{
+  "performers": [
+    {
+      "canonical_name": "三上悠亚",
+      "aliases": ["鬼头桃菜", "Yua Mikami"]
+    },
+    {
+      "canonical_name": "桥本有菜",
+      "aliases": ["Hashimoto Arina"]
+    },
+    {
+      "canonical_name": "河北彩花",
+      "aliases": ["河北彩伽", "Saika Kawakita"]
+    }
+  ],
+  "works": [
+    {
+      "code": "SSIS-456",
+      "title": "双人共演示例",
+      "release_date": "2024-07-12",
+      "studio": "S1",
+      "series": "Collaboration Stage",
+      "performers": ["三上悠亚", "桥本有菜"],
+      "raw_tags": ["HD", "Drama"],
+      "source_name": "seed",
+      "source_url": "https://example.test/works/ssis-456"
+    },
+    {
+      "code": "MIDE-321",
+      "title": "个人专场示例",
+      "release_date": "2023-02-10",
+      "studio": "MOODYZ",
+      "performers": ["三上悠亚"],
+      "raw_tags": ["Solo", "Interview"],
+      "source_name": "seed",
+      "source_url": "https://example.test/works/mide-321"
+    },
+    {
+      "code": "IPX-999",
+      "title": "三人共演示例",
+      "release_date": "2025-01-19",
+      "studio": "IDEA POCKET",
+      "series": "Festival Unit",
+      "performers": ["桥本有菜", "河北彩花", "三上悠亚"],
+      "raw_tags": ["4K", "Special"],
+      "source_name": "seed",
+      "source_url": "https://example.test/works/ipx-999"
+    }
+  ]
+}

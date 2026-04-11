@@ -1,0 +1,17 @@
+[postgres]
+host = "127.0.0.1"
+port = 5432
+sslmode = "prefer"
+
+[llm]
+provider = "xai"
+model = "grok-4.20"
+base_url = "https://api.x.ai/v1/responses"
+temperature = 0.2
+timeout_seconds = 60.0
+enabled = true
+
+[paths]
+seed_file = "examples/demo_catalog.json"
+library_root = "library"
+schema_file = "sql/init_schema.sql"

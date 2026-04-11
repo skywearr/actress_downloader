@@ -136,6 +136,7 @@ celerybeat.pid
 
 # Environments
 .env
+.env.*
 .envrc
 .venv
 env/
@@ -200,6 +201,12 @@ cython_debug/
 #  refer to https://docs.cursor.com/context/ignore-files
 .cursorignore
 .cursorindexingignore
+
+# Project runtime artifacts
+data/
+library/
+.tmp_test_sidecar/
+tmp*/
 
 # Marimo
 marimo/_static/

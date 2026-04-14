@@ -7,7 +7,8 @@ sslmode = "prefer"
 provider = "xai"
 model = "grok-4.20"
 base_url = "https://api.x.ai/v1/responses"
-temperature = 0.2
+tagging_temperature = 0.2
+alias_lookup_temperature = 0.05
 timeout_seconds = 60.0
 enabled = true
 

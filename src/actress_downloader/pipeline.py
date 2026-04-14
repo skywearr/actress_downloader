@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from actress_downloader.connectors.base import CatalogConnector
+from actress_downloader.connectors.base import CatalogConnector, CatalogConnectorError
 from actress_downloader.domain import PipelineResult
 from actress_downloader.graph import build_catalog_graph
 from actress_downloader.sidecar import SidecarExporter
@@ -15,7 +15,17 @@ def run_linear_pipeline(
     exporter: SidecarExporter,
     tagger: TaggingService,
 ) -> PipelineResult:
-    performer, candidates = connector.resolve_identity(query_name)
+    try:
+        performer, candidates = connector.resolve_identity(query_name)
+    except CatalogConnectorError as exc:
+        return PipelineResult(
+            query_name=query_name,
+            performer=None,
+            performer_candidates=[],
+            review_required=True,
+            errors=[str(exc)],
+        )
+
     if performer is None:
         return PipelineResult(
             query_name=query_name,
@@ -28,7 +38,16 @@ def run_linear_pipeline(
         )
 
     repository.initialize()
-    works = connector.discover_works(performer)
+    try:
+        works = connector.discover_works(performer)
+    except CatalogConnectorError as exc:
+        return PipelineResult(
+            query_name=query_name,
+            performer=performer,
+            performer_candidates=candidates,
+            review_required=True,
+            errors=[str(exc)],
+        )
     tagged_works = tagger.tag_works(works)
     repository.persist_works(tagged_works)
     exported_files = exporter.export_works(tagged_works)

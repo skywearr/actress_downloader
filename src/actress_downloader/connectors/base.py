@@ -5,6 +5,10 @@ from typing import Protocol
 from actress_downloader.domain import PerformerIdentity, WorkRecord
 
 
+class CatalogConnectorError(RuntimeError):
+    """Raised when a connector cannot safely continue."""
+
+
 class CatalogConnector(Protocol):
     def resolve_identity(
         self,

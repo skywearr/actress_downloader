@@ -36,7 +36,8 @@ class ConfigTests(unittest.TestCase):
                     'provider = "glm"',
                     'model = "glm-5.1"',
                     'base_url = "https://open.bigmodel.cn/api/paas/v4/chat/completions"',
-                    "temperature = 0.1",
+                    "tagging_temperature = 0.1",
+                    "alias_lookup_temperature = 0.02",
                     "timeout_seconds = 30.0",
                     "enabled = true",
                 ]
@@ -62,6 +63,9 @@ class ConfigTests(unittest.TestCase):
         self.assertIn(f"app_user:secret@db.internal:5433/{DEFAULT_DATABASE_NAME}", config.database_url)
         self.assertEqual("glm-5.1", config.llm.model)
         self.assertEqual("demo-key", config.llm.api_key)
+        self.assertEqual(0.1, config.llm.tagging_temperature)
+        self.assertEqual(0.1, config.llm.temperature)
+        self.assertEqual(0.02, config.llm.alias_lookup_temperature)
         self.assertTrue(config.llm.is_active)
 
     def test_prefers_environment_over_dotenv_for_sensitive_values(self) -> None:
@@ -79,6 +83,8 @@ class ConfigTests(unittest.TestCase):
                     "[llm]",
                     'provider = "xai"',
                     'model = "grok-4.20"',
+                    "tagging_temperature = 0.15",
+                    "alias_lookup_temperature = 0.01",
                 ]
             ),
             encoding="utf-8",
@@ -115,6 +121,8 @@ class ConfigTests(unittest.TestCase):
         self.assertIn("env-user:env-password@", config.database_url)
         self.assertEqual("env-key", config.llm.api_key)
         self.assertEqual("https://api.x.ai/v1/responses", config.llm.base_url)
+        self.assertEqual(0.15, config.llm.tagging_temperature)
+        self.assertEqual(0.01, config.llm.alias_lookup_temperature)
 
     def test_raises_when_required_secrets_are_missing(self) -> None:
         temp_root = PROJECT_ROOT / ".tmp_test_config_missing"

@@ -50,6 +50,8 @@ class LLMConfig:
     api_key: str
     base_url: str
     temperature: float
+    tagging_temperature: float
+    alias_lookup_temperature: float
     timeout_seconds: float
     enabled: bool
 
@@ -109,7 +111,9 @@ class AppConfig:
                 model=llm_payload.get("model", _default_llm_model(llm_provider)),
                 api_key=_resolve_llm_api_key(llm_provider, dotenv_payload),
                 base_url=llm_payload.get("base_url", _default_llm_base_url(llm_provider)),
-                temperature=float(llm_payload.get("temperature", 0.2)),
+                temperature=float(llm_payload.get("tagging_temperature", llm_payload.get("temperature", 0.2))),
+                tagging_temperature=float(llm_payload.get("tagging_temperature", llm_payload.get("temperature", 0.2))),
+                alias_lookup_temperature=float(llm_payload.get("alias_lookup_temperature", 0.05)),
                 timeout_seconds=float(llm_payload.get("timeout_seconds", 60.0)),
                 enabled=_as_bool(os.environ.get("LLM_ENABLED"), llm_payload.get("enabled", True)),
             ),

@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 from urllib.parse import urlparse, urlunparse
+from datetime import date
 
 import psycopg
 from psycopg import errors
@@ -79,6 +80,7 @@ class CatalogRepository:
         return self._database_url
 
     def _upsert_work(self, cursor: psycopg.Cursor, work: WorkRecord) -> int:
+        release_date = normalize_release_date(work.release_date)
         cursor.execute(
             """
             INSERT INTO works (code, title, release_date, studio, series, synopsis, source_name, source_url, extra)
@@ -98,7 +100,7 @@ class CatalogRepository:
             (
                 work.code,
                 work.title,
-                work.release_date,
+                release_date,
                 work.studio,
                 work.series,
                 work.synopsis,
@@ -169,6 +171,21 @@ class CatalogRepository:
             for statement in raw_sql.split(";")
             if statement.strip()
         ]
+
+
+def normalize_release_date(value: str | None) -> str | None:
+    if value is None:
+        return None
+    normalized = value.strip()
+    if not normalized:
+        return None
+    if normalized == "0000-00-00":
+        return None
+    try:
+        date.fromisoformat(normalized)
+    except ValueError:
+        return None
+    return normalized
 
 
 class DatabaseCreationPermissionError(RuntimeError):

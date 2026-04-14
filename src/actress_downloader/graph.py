@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, TypedDict
 
-from actress_downloader.connectors.base import CatalogConnector
+from actress_downloader.connectors.base import CatalogConnector, CatalogConnectorError
 from actress_downloader.domain import PerformerIdentity, WorkRecord
 from actress_downloader.sidecar import SidecarExporter
 from actress_downloader.storage import CatalogRepository
@@ -39,8 +39,17 @@ def build_catalog_graph(
         }
 
     def resolve_identity(state: CatalogGraphState) -> CatalogGraphState:
-        performer, candidates = connector.resolve_identity(state["query_name"])
         errors = list(state.get("errors", []))
+        try:
+            performer, candidates = connector.resolve_identity(state["query_name"])
+        except CatalogConnectorError as exc:
+            errors.append(str(exc))
+            return {
+                "performer": None,
+                "performer_candidates": [],
+                "review_required": True,
+                "errors": errors,
+            }
         review_required = performer is None
         if performer is None:
             if candidates:
@@ -58,7 +67,16 @@ def build_catalog_graph(
         performer = state.get("performer")
         if performer is None:
             return {"works": []}
-        works = connector.discover_works(performer)
+        try:
+            works = connector.discover_works(performer)
+        except CatalogConnectorError as exc:
+            errors = list(state.get("errors", []))
+            errors.append(str(exc))
+            return {
+                "works": [],
+                "review_required": True,
+                "errors": errors,
+            }
         return {"works": works}
 
     def tag_works(state: CatalogGraphState) -> CatalogGraphState:
@@ -76,6 +94,9 @@ def build_catalog_graph(
 
     def review_required_route(state: CatalogGraphState) -> str:
         return "review_required" if state.get("review_required", False) else "discover_works"
+
+    def discover_route(state: CatalogGraphState) -> str:
+        return "review_required" if state.get("review_required", False) else "tag_works"
 
     def review_required(state: CatalogGraphState) -> CatalogGraphState:
         return state
@@ -100,7 +121,14 @@ def build_catalog_graph(
         },
     )
     graph.add_edge("review_required", END)
-    graph.add_edge("discover_works", "tag_works")
+    graph.add_conditional_edges(
+        "discover_works",
+        discover_route,
+        {
+            "review_required": "review_required",
+            "tag_works": "tag_works",
+        },
+    )
     graph.add_edge("tag_works", "persist_works")
     graph.add_edge("persist_works", "export_sidecars")
     graph.add_edge("export_sidecars", END)

@@ -9,6 +9,7 @@ from typing import Any, Protocol, Sequence
 
 from actress_downloader.config import LLMConfig
 from actress_downloader.domain import WorkRecord
+from actress_downloader.timing import emit_timing_event, now
 from actress_downloader.utils import extract_year, normalize_tag
 
 
@@ -85,14 +86,19 @@ class SafeMetadataTagLLM:
         )
         self._print_interaction_input(work.code, request.payload)
 
+        started_at = now()
+        generated_tags: list[str] = []
+        error_type = ""
         try:
-            return self._stream_completion(
+            generated_tags = self._stream_completion(
                 httpx=httpx,
                 work=work,
                 request=request,
                 existing_tags=existing_tags,
             )
+            return generated_tags
         except Exception:
+            error_type = "request_failed"
             logger.error("LLM request raised an exception for %s", work.code)
             logger.error(
                 "Failed request payload for %s:\n%s",
@@ -100,6 +106,17 @@ class SafeMetadataTagLLM:
                 json.dumps(request.payload, ensure_ascii=False, indent=2),
             )
             raise
+        finally:
+            emit_timing_event(
+                "llm.tagging",
+                started_at,
+                provider=self._config.provider,
+                model=self._config.model,
+                work_code=work.code,
+                existing_tag_count=len(existing_tags),
+                generated_tag_count=len(generated_tags),
+                error_type=error_type or None,
+            )
 
     def _stream_completion(
         self,
@@ -109,6 +126,7 @@ class SafeMetadataTagLLM:
         existing_tags: Sequence[str],
     ) -> list[str]:
         print(f"=== LLM Stream {work.code} ===", flush=True)
+        status_code: int | None = None
         with httpx.stream(
             "POST",
             self._config.base_url,
@@ -119,6 +137,7 @@ class SafeMetadataTagLLM:
             json=request.payload,
             timeout=self._config.timeout_seconds,
         ) as response:
+            status_code = response.status_code
             if response.status_code >= 400:
                 response.read()
                 self._log_failed_payload_if_needed(work.code, request.payload, response)
@@ -133,11 +152,17 @@ class SafeMetadataTagLLM:
         self._print_interaction_output(work.code, full_output)
 
         parsed_tags = _parse_tag_list(full_output)
-        return [
+        filtered_tags = [
             tag
             for tag in parsed_tags
             if tag in request.candidate_tags and tag not in existing_tags
         ][:5]
+        print(
+            f"[timing-meta] llm.tagging_response work_code={work.code} "
+            f"status_code={status_code} raw_tag_count={len(parsed_tags)} filtered_tag_count={len(filtered_tags)}",
+            flush=True,
+        )
+        return filtered_tags
 
     def _consume_chat_completions_stream(self, response: object) -> str:
         chunks: list[str] = []

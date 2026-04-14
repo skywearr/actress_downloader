@@ -3,8 +3,11 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
+from actress_downloader.alias_expander import build_alias_expander
 from actress_downloader.config import AppConfig, DEFAULT_DATABASE_NAME
+from actress_downloader.connectors.javbus import JavbusConnector
 from actress_downloader.connectors.seed import SeedCatalogConnector
+from actress_downloader.domain import PerformerIdentity
 from actress_downloader.llm import build_work_tagger
 from actress_downloader.pipeline import run_catalog_pipeline
 from actress_downloader.sidecar import SidecarExporter
@@ -22,6 +25,12 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("name", help="Performer name or alias")
     parser.add_argument("--config", help="Path to the TOML config file")
+    parser.add_argument(
+        "--connector",
+        choices=("javbus", "seed"),
+        default="javbus",
+        help="Catalog connector to use. Defaults to the live JavBus connector.",
+    )
     parser.add_argument("--seed-file", help="Offline catalog seed used by the MVP connector")
     parser.add_argument(
         "--database-name",
@@ -34,13 +43,39 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def confirm_performer_candidate(candidate: PerformerIdentity, matched_aliases: list[str]) -> bool:
+    print("LLM alias search found a JavBus candidate:")
+    print(f"  performer: {candidate.canonical_name}")
+    if candidate.aliases:
+        print(f"  aliases: {', '.join(candidate.aliases)}")
+    if matched_aliases:
+        print(f"  matched aliases: {', '.join(matched_aliases)}")
+
+    while True:
+        try:
+            answer = input("Confirm this performer? [Y/N]: ").strip().lower()
+        except EOFError:
+            return False
+        if answer in {"y", "yes"}:
+            return True
+        if answer in {"n", "no"}:
+            return False
+        print("Please type Y or N.")
+
+
 def main() -> int:
     parser = build_parser()
     args = parser.parse_args()
     config = AppConfig.from_file(Path(args.config) if args.config else None)
     postgres = config.postgres.with_database(args.database_name) if args.database_name else config.postgres
 
-    connector = SeedCatalogConnector(Path(args.seed_file) if args.seed_file else config.paths.seed_file)
+    if args.connector == "seed":
+        connector = SeedCatalogConnector(Path(args.seed_file) if args.seed_file else config.paths.seed_file)
+    else:
+        connector = JavbusConnector(
+            alias_expander=build_alias_expander(config.llm),
+            candidate_confirmer=confirm_performer_candidate,
+        )
     repository = CatalogRepository(
         database_url=postgres.database_url,
         schema_path=config.paths.schema_file,
